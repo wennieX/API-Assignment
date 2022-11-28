@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI, Response, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader, APIKey
 from starlette.status import HTTP_403_FORBIDDEN
-from database.database_client import DatabaseClient
+from database_client import DatabaseClient
 import os
 from models.info_schema import InforData
 
