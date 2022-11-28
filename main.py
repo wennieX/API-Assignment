@@ -22,6 +22,7 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
 
 app = FastAPI()
 
+# Connecting database object.
 db_client = DatabaseClient(
     user="admin",
     database="db",
@@ -29,7 +30,7 @@ db_client = DatabaseClient(
     password="test",
 )
 
-
+# Retrieve a person’s record based on id. The headers of API call must contain the API key.
 @app.get("/api/{id}")
 async def get_info_base_id(id:int, response: Response, api_key: APIKey = Depends(get_api_key)):
     info = db_client.get_information(id=id)
@@ -43,7 +44,7 @@ async def get_info_base_id(id:int, response: Response, api_key: APIKey = Depends
     else:
         return info[0]
 
-
+# Update info based on id.
 @app.post("/api/update/{id}")
 def update_info_base_id(id: int, update_data: InforData, response: Response, api_key: APIKey = Depends(get_api_key)):
     update_dict = update_data.dict()
@@ -52,7 +53,7 @@ def update_info_base_id(id: int, update_data: InforData, response: Response, api
         val = update_dict[col]
         if val != "string":
             data_dict[col] = val
-
+    # Ignore default "string" value, and just update changed values.
     if data_dict:
         update_success = db_client.update_information(id, data_dict)
         if update_success:
@@ -72,6 +73,7 @@ def update_info_base_id(id: int, update_data: InforData, response: Response, api
         }
 
 
+# Delete records based on id.
 @app.delete("/api/delete/{id}")
 def delete_info_base_id(id: int, response: Response, api_key: APIKey = Depends(get_api_key)):
     rows_deleted = db_client.delete_information(id)
@@ -86,6 +88,7 @@ def delete_info_base_id(id: int, response: Response, api_key: APIKey = Depends(g
         }
 
 
+# Get all persons in database who use same email, not allowed by users.
 @app.get("/api/persons/emails/")
 def get_persons_with_same_email(response: Response):
     persons = db_client.all_persons_with_duplicate_email()
@@ -107,9 +110,9 @@ def get_persons_with_same_email(response: Response):
         return {"status": "No persons with duplicate email address"}
 
 
+# Get persons shared with a same email.
 @app.post("/api/email/{email}")
 def get_persons_by_email(email: str, response: Response, api_key: APIKey = Depends(get_api_key)):
-    # return email
     persons = db_client.persons_with_same_email(email=email)
     # if returned info is not empty
     if not persons:
@@ -135,6 +138,7 @@ def get_persons_by_email(email: str, response: Response, api_key: APIKey = Depen
 
 if __name__ == "__main__":
 
+    # Ingest the data.json into database.
     # json_file = "/Users/wen/PycharmProjects/SanomaProject/APIAssignment/database/data.json"
     # ingest_success = db_client.ingest_json(json_file)
     # if ingest_success:
@@ -142,11 +146,6 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host="127.0.0.1", port=5000, log_level="info")
 
-    # di = {"first_name":"YYY","last_name":"XXX"}
-    # # di = {"first_name": "QQ"}
-    #
-    # r = db_client.update_information(person_id='23',update_data_dict=di)
-    # print(r)
 
 
 

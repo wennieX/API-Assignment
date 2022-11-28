@@ -19,8 +19,9 @@ class DatabaseClient:
         if self.conn:
             self.conn.close()
 
+    # Ingest data.json file into database, the file has same schema with info table.
     def ingest_json(self, json_file):
-
+        # ingest success flag.
         ingest_success = False
         with open(json_file) as f:
             data = f.read()
@@ -34,13 +35,14 @@ class DatabaseClient:
         try:
             cursor.execute(query_sql, (data,))
             self.conn.commit()
+            ingest_success = True
         except (Exception, psycopg2.Error) as error:
             print("Failed to insert record into information table", error)
         finally:
-            ingest_success = True
             cursor.close()
             return ingest_success
 
+    # Return records by given id.
     def get_information(self, id):
         cursor = self.conn.cursor()
         q = """
@@ -52,11 +54,11 @@ class DatabaseClient:
         except psycopg2.errors.InFailedSqlTransaction as err:
             traceback.print_exc()
             return None
-
         results = cursor.fetchall()
         # Psycopg opens transactions even with SELECT queries, so we close it here
         self.conn.commit()
         cursor.close()
+        # Check the given id is in database or not.
         if not results:
             return {}
         return results
@@ -81,6 +83,7 @@ class DatabaseClient:
 
             return persons
 
+    # Return first_name and last_name of persons with duplicate email.
     def persons_with_same_email(self, email):
 
         cursor = self.conn.cursor()
@@ -96,23 +99,24 @@ class DatabaseClient:
             traceback.print_exc()
             return None
         persons = cursor.fetchall()
-
         self.conn.commit()
         cursor.close()
 
         return persons
 
+    # Update a person’s information based on id, if id doesn't exist, insert the new records into database.
+    # Return update_success is True or False.
     def update_information(self, person_id, update_data_dict):
         update_success = True
         cursor = self.conn.cursor()
+        # Check the id is in database or not.
         results = self.get_information(id=person_id)
         if results:
             update_sql = ""
-
+            # Sql statements are different on using round brackets or not when set one column and multiple columns.
             if len(update_data_dict.keys()) == 1:
                 sql = "UPDATE information SET {} = %s WHERE id = {}"
                 sql = sql.format(''.join(update_data_dict.keys()), person_id)
-                # col = list(update_data_dict.keys())[0]
                 val = list(update_data_dict.values())[0]
                 update_sql = cursor.mogrify(sql, (val,))
             else:
@@ -120,8 +124,7 @@ class DatabaseClient:
                 params = (tuple(update_data_dict.values()),)
                 sql = sql_template.format(', '.join(update_data_dict.keys()), person_id)
                 update_sql = cursor.mogrify(sql, params)
-
-            print(update_sql)
+            # print(update_sql)
             try:
                 cursor.execute(update_sql)
                 self.conn.commit()
@@ -132,7 +135,7 @@ class DatabaseClient:
                 cursor.close()
                 return update_success
         else:
-            # print("id is not in the table")
+            # Given id is not in the database.
             update_data_dict["id"] = person_id
             sql_template = "INSERT INTO information ({})  VALUES {} RETURNING id"
             sql = sql_template.format(','.join(update_data_dict.keys()), tuple(update_data_dict.values()))
@@ -148,6 +151,7 @@ class DatabaseClient:
                 cursor.close()
                 return update_success
 
+    # Delete records based on id.
     def delete_information(self, id):
         cursor = self.conn.cursor()
         q = "DELETE FROM information WHERE id = %s"
@@ -157,6 +161,7 @@ class DatabaseClient:
             print("Failed to delete record from information table", error)
 
         finally:
+            # rows_deleted is 0, which means the id does not exist.
             rows_deleted = cursor.rowcount
             self.conn.commit()
             cursor.close()
